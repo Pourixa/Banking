@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My Bank</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--text:#1a2233;--muted:#6b7590;--line:#e3e8f0;--in:#16a34a;--out:#dc2626;--accent:#2563eb;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1420;--card:#1a2130;--text:#e8ecf5;--muted:#8d97b0;--line:#2a3348;--in:#4ade80;--out:#f87171;--accent:#60a5fa}}
+:root[data-theme="dark"]{--bg:#0f1420;--card:#1a2130;--text:#e8ecf5;--muted:#8d97b0;--line:#2a3348;--in:#4ade80;--out:#f87171;--accent:#60a5fa}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:480px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:8px 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.balance{text-align:center}
+.balance small{color:var(--muted)}
+.balance .big{font-size:40px;font-weight:700;margin:4px 0}
+.totals{display:flex;gap:10px}
+.totals div{flex:1;border-radius:12px;padding:10px;background:var(--bg);text-align:center}
+.totals small{display:block;color:var(--muted);font-size:12px}
+.totals b{font-size:18px}
+.in{color:var(--in)}.out{color:var(--out)}
+input{width:100%;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);margin-bottom:10px}
+.btns{display:flex;gap:10px}
+button{flex:1;padding:12px;font-size:16px;font-weight:600;border:0;border-radius:10px;color:#fff;cursor:pointer}
+.bin{background:#16a34a}.bout{background:#dc2626}
+.reset{background:none;color:var(--muted);font-size:13px;font-weight:400;margin-top:6px;flex:none;width:100%}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+li:last-child{border:0}
+li .l small{display:block;color:var(--muted);font-size:12px}
+li .r{text-align:right}
+.del{flex:none;width:32px;height:32px;padding:0;margin-left:10px;background:var(--bg);color:var(--out);border:1px solid var(--line);font-size:14px}
+li .r{margin-left:auto}
+.empty{color:var(--muted);text-align:center;padding:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>🏦 My Bank</h1>
+
+<div class="card balance">
+<small>Current balance</small>
+<div class="big" id="bal">0.00</div>
+<div class="totals">
+<div><small>Total income</small><b class="in" id="tin">0.00</b></div>
+<div><small>Total outcome</small><b class="out" id="tout">0.00</b></div>
+</div>
+</div>
+
+<div class="card">
+<input id="amt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Amount">
+<input id="note" type="text" placeholder="Note (optional)">
+<div class="btns">
+<button class="bin" onclick="add('in')">+ Income</button>
+<button class="bout" onclick="add('out')">− Outcome</button>
+</div>
+<button class="reset" id="rst" onclick="resetAll()">Reset everything</button>
+</div>
+
+<div class="card">
+<b>History</b>
+<ul id="list"></ul>
+</div>
+</main>
+
+<script>
+var tx=[];
+try{tx=JSON.parse(localStorage.getItem("bank_tx")||"[]")}catch(e){tx=[]}
+function save(){try{localStorage.setItem("bank_tx",JSON.stringify(tx))}catch(e){}}
+function f(n){return n.toFixed(2)}
+function add(type){
+  var a=parseFloat(document.getElementById("amt").value);
+  if(!a||a<=0){var i=document.getElementById("amt");i.placeholder="Enter a valid amount";i.style.borderColor="var(--out)";i.focus();return}
+  document.getElementById("amt").style.borderColor="";
+  tx.push({type:type,amount:a,note:document.getElementById("note").value.trim()});
+  document.getElementById("amt").value="";document.getElementById("note").value="";
+  save();render();
+}
+var armed=false,timer;
+function resetAll(){
+  var b=document.getElementById("rst");
+  if(!armed){armed=true;b.textContent="Tap again to confirm reset";b.style.color="var(--out)";
+    timer=setTimeout(disarm,3000);return}
+  clearTimeout(timer);tx=[];save();render();disarm();
+}
+function disarm(){armed=false;var b=document.getElementById("rst");b.textContent="Reset everything";b.style.color=""}
+function del(i){tx.splice(i,1);save();render()}
+function render(){
+  var tin=0,tout=0,run=0,html="";
+  tx.forEach(function(t,i){
+    if(t.type==="in"){tin+=t.amount;run+=t.amount}else{tout+=t.amount;run-=t.amount}
+    var sign=t.type==="in"?"+":"−";
+    html='<li><div class="l"><span class="'+t.type+'">'+sign+f(t.amount)+'</span>'
+      +(t.note?'<small>'+t.note.replace(/</g,"&lt;")+'</small>':'')
+      +'</div><div class="r"><small>balance</small><b>'+f(run)+'</b></div><button class="del" onclick="del('+i+')" aria-label="Delete">✕</button></li>'+html;
+  });
+  document.getElementById("tin").textContent=f(tin);
+  document.getElementById("tout").textContent=f(tout);
+  var b=document.getElementById("bal");
+  b.textContent=f(tin-tout);
+  b.className="big "+(tin-tout<0?"out":"");
+  document.getElementById("list").innerHTML=html||'<div class="empty">No transactions yet</div>';
+}
+render();
+</script>
+</body>
+</html>
